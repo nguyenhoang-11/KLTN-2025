@@ -1,0 +1,21 @@
+LITE FURNITURE SUPPLY CHAIN DATASET
+========================================
+
+📊 DATASET SIZE:
+- facilities: 4 records
+- products: 24 records
+- demand: 2160 records
+- inventory: 72 records
+- transfers: 50 records
+- production: 10 records
+- procurement: 4 records
+- transportation: 12 records
+
+🏢 BUSINESS MODEL:
+- 1 Vietnam Manufacturing Facility
+- 3 US Finishing Facilities
+- 24 Furniture Products (3 series × 4 colors × 2 types)
+- 30 days of historical data
+
+✅ Enterprise structure with manageable size
+🎯 Perfect for prototyping and testing

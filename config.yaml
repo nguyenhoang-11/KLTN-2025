@@ -1,0 +1,29 @@
+# DSS Configuration File
+
+data:
+  data_dir: D:/KLTN/data/lite_furniture_data
+  output_dir: D:/KLTN/outputs
+
+paths:
+  reports: D:/KLTN/outputs/reports
+  visualizations: D:/KLTN/outputs/visualizations
+  results: D:/KLTN/outputs/results
+
+optimization:
+  solver: PULP_CBC_CMD
+  time_limit: 300  # seconds
+  mip_gap: 0.01
+
+costs:
+  stockout_penalty: 100  # per unit
+  emergency_order_multiplier: 1.5
+
+policies:
+  safety_stock_service_level: 0.95
+  review_period_days: 7
+  max_transshipment_distance: 5000  # km
+
+visualization:
+  theme: plotly_white
+  default_width: 1200
+  default_height: 600

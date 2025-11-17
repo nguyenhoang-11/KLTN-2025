@@ -1,0 +1,5 @@
+facility_code,facility_name,location,country,facility_type,daily_capacity,operating_cost_per_day,storage_cost_per_unit_per_day
+VN_FAC_1,Vietnam Factory,Ho Chi Minh City,Vietnam,manufacturing,500,5000,0.5
+US_FAC_1,US West Coast,"Los Angeles, CA",USA,finishing,200,15000,2.0
+US_FAC_2,US East Coast,"New York, NY",USA,finishing,200,15000,2.0
+US_FAC_3,US Central,"Chicago, IL",USA,finishing,200,15000,2.0
