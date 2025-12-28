@@ -29,7 +29,7 @@ from dss_system.data.loader_afi import AFIDataLoader
 # Page configuration
 st.set_page_config(
     page_title="AFI Supply Chain DSS",
-    page_icon="📊",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -191,7 +191,7 @@ def main():
     # Sidebar
     st.sidebar.markdown("""
         <div style='text-align: center; padding: 2rem 0 1.5rem 0; border-bottom: 1px solid #ebeef4;'>
-            <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'>📊</div>
+            <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'></div>
             <h2 style='color: #012970; margin: 0; font-size: 1.25rem; font-weight: 700;'>AFI Supply Chain</h2>
             <p style='color: #899bbd; font-size: 0.75rem; margin-top: 0.25rem; font-weight: 600;'>
                 ENTERPRISE DSS
@@ -203,8 +203,8 @@ def main():
 
     page = st.sidebar.radio(
         "NAVIGATION",
-        ["🏠 Overview", "📈 Forecast Analysis", "📦 Inventory Position",
-         "🔄 Transshipment", "📊 Performance", "📄 Reports"],
+        [" Overview", " Forecast Analysis", " Inventory Position",
+         " Transshipment", " Performance", " Reports"],
         label_visibility="visible"
     )
 
@@ -215,12 +215,12 @@ def main():
         <div style='background: #fff; border-radius: 5px; padding: 1rem; margin: 1rem 0;
                     box-shadow: 0px 0 20px rgba(1, 41, 112, 0.1); border-left: 3px solid #4154f1;'>
             <h4 style='color: #012970; margin: 0 0 0.75rem 0; font-size: 0.9rem; font-weight: 700;'>
-                ℹ️ DATA SOURCE
+                INFO: DATA SOURCE
             </h4>
             <p style='color: #899bbd; font-size: 0.8rem; margin: 0; line-height: 1.6;'>
                 <strong style='color: #012970;'>Ashley Furniture Industries</strong><br>
                 Real enterprise supply chain data<br>
-                4,820 items × 17 warehouses<br>
+                4,820 items x 17 warehouses<br>
                 12-week forecast horizon
             </p>
         </div>
@@ -250,21 +250,21 @@ def main():
     """, unsafe_allow_html=True)
 
     # Load data
-    with st.spinner("🔄 Loading AFI enterprise data... Please wait."):
+    with st.spinner(" Loading AFI enterprise data... Please wait."):
         loader = load_afi_data()
 
     # Route to pages
-    if page == "🏠 Overview":
+    if page == " Overview":
         show_overview_page(loader)
-    elif page == "📈 Forecast Analysis":
+    elif page == " Forecast Analysis":
         show_forecast_page(loader)
-    elif page == "📦 Inventory Position":
+    elif page == " Inventory Position":
         show_inventory_page(loader)
-    elif page == "🔄 Transshipment":
+    elif page == " Transshipment":
         show_transshipment_page(loader)
-    elif page == "📊 Performance":
+    elif page == " Performance":
         show_performance_page(loader)
-    elif page == "📄 Reports":
+    elif page == " Reports":
         show_reports_page(loader)
 
 
@@ -285,7 +285,7 @@ def show_overview_page(loader):
 
     st.markdown("""
         <div style='margin-bottom: 1.5rem;'>
-            <h2 style='margin: 0;'>📊 Key Performance Indicators</h2>
+            <h2 style='margin: 0;'> Key Performance Indicators</h2>
             <p style='color: #899bbd; font-size: 0.875rem; margin-top: 0.25rem;'>
                 Real-time metrics for supply chain performance monitoring
             </p>
@@ -314,7 +314,7 @@ def show_overview_page(loader):
         st.metric(
             "Total SKUs",
             f"{summary['total_skus']:,}",
-            help="Item × Warehouse combinations"
+            help="Item x Warehouse combinations"
         )
         st.metric(
             "Coverage %",
@@ -359,7 +359,7 @@ def show_overview_page(loader):
     with col1:
         st.markdown("""
             <div class='nice-card'>
-                <h3 style='color: #012970; margin-bottom: 1rem;'>📊 Inventory Health Status</h3>
+                <h3 style='color: #012970; margin-bottom: 1rem;'> Inventory Health Status</h3>
             </div>
         """, unsafe_allow_html=True)
 
@@ -395,7 +395,7 @@ def show_overview_page(loader):
     with col2:
         st.markdown("""
             <div class='nice-card'>
-                <h3 style='color: #012970; margin-bottom: 1rem;'>💰 Backorder Risk by Warehouse</h3>
+                <h3 style='color: #012970; margin-bottom: 1rem;'> Backorder Risk by Warehouse</h3>
             </div>
         """, unsafe_allow_html=True)
 
@@ -428,7 +428,7 @@ def show_overview_page(loader):
 
     # Alerts section
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("## ⚠️ Alerts & Recommendations")
+    st.markdown("## WARNING: Alerts & Recommendations")
 
     col1, col2 = st.columns([2, 1])
 
@@ -436,7 +436,7 @@ def show_overview_page(loader):
         if summary['items_below_lower'] > 0:
             st.markdown(f"""
                 <div class='alert-danger'>
-                    <strong>⚠️ CRITICAL:</strong> {summary['items_below_lower']:,} items below safety stock<br>
+                    <strong>WARNING: CRITICAL:</strong> {summary['items_below_lower']:,} items below safety stock<br>
                     Recommended action: Initiate transshipment or emergency orders
                 </div>
             """, unsafe_allow_html=True)
@@ -444,7 +444,7 @@ def show_overview_page(loader):
         if summary['items_above_upper'] > 0:
             st.markdown(f"""
                 <div class='alert-warning'>
-                    <strong>ℹ️ WARNING:</strong> {summary['items_above_upper']:,} items above maximum stock<br>
+                    <strong>INFO: WARNING:</strong> {summary['items_above_upper']:,} items above maximum stock<br>
                     Recommended action: Review for potential redistribution
                 </div>
             """, unsafe_allow_html=True)
@@ -452,7 +452,7 @@ def show_overview_page(loader):
         if summary['transshipment_opportunities'] > 0:
             st.markdown(f"""
                 <div class='alert-success'>
-                    <strong>💡 OPPORTUNITY:</strong> {summary['transshipment_opportunities']} transshipment opportunities identified<br>
+                    <strong> OPPORTUNITY:</strong> {summary['transshipment_opportunities']} transshipment opportunities identified<br>
                     Potential savings: <span class='kpi-positive'>${summary['total_potential_savings']:,.0f}</span>
                 </div>
             """, unsafe_allow_html=True)
@@ -485,7 +485,7 @@ def show_forecast_page(loader):
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 📈 12-Week Safety Stock Forecast")
+    st.markdown("###  12-Week Safety Stock Forecast")
 
     # Get forecast data
     forecast = loader.get_forecast_data()
@@ -599,7 +599,7 @@ def show_inventory_page(loader):
         return
 
     # Summary metrics
-    st.markdown("### 📊 Inventory Status Summary")
+    st.markdown("###  Inventory Status Summary")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -646,7 +646,7 @@ def show_inventory_page(loader):
 
     # Inventory heatmap
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🗺️ Inventory Level Heatmap")
+    st.markdown("###  Inventory Level Heatmap")
 
     # Create status column
     position['STATUS'] = 'HEALTHY'
@@ -680,7 +680,7 @@ def show_inventory_page(loader):
 
     # Shortage details
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🚨 Shortage Items (Below Lower Bound)")
+    st.markdown("###  Shortage Items (Below Lower Bound)")
 
     if not shortages.empty:
         # Display table
@@ -714,7 +714,7 @@ def show_inventory_page(loader):
 
     # Excess details
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 📦 Excess Items (Above Upper Bound)")
+    st.markdown("###  Excess Items (Above Upper Bound)")
 
     if not excess.empty:
         excess_display = excess[[
@@ -751,7 +751,7 @@ def show_transshipment_page(loader):
 
     st.markdown("""
         <div style='background: #f6f9ff; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #4154f1; margin-bottom: 1.5rem;'>
-            <strong>ℹ️ About Transshipment:</strong> Lateral transshipment involves moving inventory between
+            <strong>INFO: About Transshipment:</strong> Lateral transshipment involves moving inventory between
             facilities at the same echelon to balance shortages and excess. This analysis matches items with
             shortages to warehouses with excess inventory of the same item.
         </div>
@@ -770,7 +770,7 @@ def show_transshipment_page(loader):
         return
 
     # Summary metrics
-    st.markdown("### 📊 Opportunity Summary")
+    st.markdown("###  Opportunity Summary")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -813,7 +813,7 @@ def show_transshipment_page(loader):
 
     # Opportunity table
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🔄 Recommended Transfers")
+    st.markdown("###  Recommended Transfers")
 
     # Convert to DataFrame for display
     opp_df = pd.DataFrame(opportunities)
@@ -865,7 +865,7 @@ def show_transshipment_page(loader):
 
     # Network flow visualization
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🌐 Transfer Flow Network")
+    st.markdown("###  Transfer Flow Network")
 
     if len(filtered_opp) > 0:
         # Create Sankey diagram
@@ -919,14 +919,14 @@ def show_transshipment_page(loader):
 
     # Action recommendations
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 💡 Action Recommendations")
+    st.markdown("###  Action Recommendations")
 
     high_priority_opps = [o for o in opportunities if o['priority'] == 'HIGH']
 
     if high_priority_opps:
         st.markdown(f"""
             <div class='alert-danger'>
-                <strong>⚠️ IMMEDIATE ACTION REQUIRED:</strong><br>
+                <strong>WARNING: IMMEDIATE ACTION REQUIRED:</strong><br>
                 {len(high_priority_opps)} high-priority transfers identified with total potential savings of
                 <strong>${sum(o['net_benefit'] for o in high_priority_opps):,.0f}</strong>
             </div>
@@ -992,7 +992,7 @@ def show_performance_page(loader):
     excess_df = pd.DataFrame(excess_trend)
 
     # Coverage trend
-    st.markdown("### 📈 Safety Stock Coverage Trend")
+    st.markdown("###  Safety Stock Coverage Trend")
 
     fig_coverage = px.line(
         coverage_df,
@@ -1040,7 +1040,7 @@ def show_performance_page(loader):
 
     # Backorder risk trend
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 💰 Backorder Risk Trend")
+    st.markdown("###  Backorder Risk Trend")
 
     fig_backorder = px.line(
         backorder_df,
@@ -1060,7 +1060,7 @@ def show_performance_page(loader):
 
     # Shortage vs Excess trend
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### ⚖️ Shortage vs Excess Items")
+    st.markdown("###  Shortage vs Excess Items")
 
     combined_df = pd.DataFrame({
         'Week': weeks,
@@ -1094,7 +1094,7 @@ def show_performance_page(loader):
 
     # Warehouse performance ranking
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🏆 Warehouse Performance Ranking (Week 6)")
+    st.markdown("###  Warehouse Performance Ranking (Week 6)")
 
     position = get_cached_inventory_position(loader, 'W6')
 
@@ -1125,7 +1125,7 @@ def show_performance_page(loader):
 
     # Item risk analysis
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🎯 Top 10 At-Risk Items (Week 6)")
+    st.markdown("###  Top 10 At-Risk Items (Week 6)")
 
     shortages = get_cached_shortages(loader, 'W6')
 
@@ -1160,13 +1160,13 @@ def show_reports_page(loader):
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 📄 Generate Reports")
+    st.markdown("###  Generate Reports")
 
     # Week selector
     week = st.selectbox("Select Week for Report", ['W3', 'W4', 'W5', 'W6'], key='report_week')
 
     # Generate comprehensive report
-    if st.button("📋 Generate Comprehensive Report", type="primary"):
+    if st.button(" Generate Comprehensive Report", type="primary"):
         with st.spinner("Generating report..."):
             summary = get_cached_summary_stats(loader, week)
             shortages = get_cached_shortages(loader, week)
@@ -1234,18 +1234,18 @@ def show_reports_page(loader):
             report_lines.append("\n" + "=" * 80)
             report_lines.append("\n## RECOMMENDATIONS")
             if summary['items_below_lower'] > 0:
-                report_lines.append("⚠️  CRITICAL: Address shortage items immediately through:")
+                report_lines.append("WARNING:  CRITICAL: Address shortage items immediately through:")
                 report_lines.append("   - Lateral transshipment from excess warehouses")
                 report_lines.append("   - Emergency replenishment orders")
                 report_lines.append("   - Review safety stock bounds")
             if len(opportunities) > 0:
-                report_lines.append(f"💡 OPPORTUNITY: Implement {len(opportunities)} transshipment moves for ${sum(o['net_benefit'] for o in opportunities):,.0f} in savings")
+                report_lines.append(f" OPPORTUNITY: Implement {len(opportunities)} transshipment moves for ${sum(o['net_benefit'] for o in opportunities):,.0f} in savings")
             if summary['coverage_percentage'] >= 90:
-                report_lines.append("✅ EXCELLENT: Safety stock coverage above 90%")
+                report_lines.append("SUCCESS: EXCELLENT: Safety stock coverage above 90%")
             elif summary['coverage_percentage'] >= 80:
                 report_lines.append("✓  GOOD: Safety stock coverage above 80%")
             else:
-                report_lines.append("⚠️  ATTENTION: Safety stock coverage below 80% - review inventory policies")
+                report_lines.append("WARNING:  ATTENTION: Safety stock coverage below 80% - review inventory policies")
 
             report_lines.append("\n" + "=" * 80)
             report_lines.append("END OF REPORT")
@@ -1256,7 +1256,7 @@ def show_reports_page(loader):
             st.text_area("Report Preview", report_text, height=400)
 
             st.download_button(
-                label="📥 Download Report (TXT)",
+                label=" Download Report (TXT)",
                 data=report_text,
                 file_name=f"AFI_Report_{week}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain"
@@ -1264,12 +1264,12 @@ def show_reports_page(loader):
 
     # Data exports
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 📊 Export Data")
+    st.markdown("###  Export Data")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("📥 Export Shortages (CSV)"):
+        if st.button(" Export Shortages (CSV)"):
             shortages = get_cached_shortages(loader, week)
             if not shortages.empty:
                 csv = shortages.to_csv(index=False)
@@ -1282,7 +1282,7 @@ def show_reports_page(loader):
             else:
                 st.info("No shortage data to export")
 
-        if st.button("📥 Export Excess Inventory (CSV)"):
+        if st.button(" Export Excess Inventory (CSV)"):
             excess = get_cached_excess(loader, week)
             if not excess.empty:
                 csv = excess.to_csv(index=False)
@@ -1296,7 +1296,7 @@ def show_reports_page(loader):
                 st.info("No excess data to export")
 
     with col2:
-        if st.button("📥 Export Transshipment Plan (CSV)"):
+        if st.button(" Export Transshipment Plan (CSV)"):
             opportunities = get_cached_transshipment_opportunities(loader, week)
             if opportunities:
                 opp_df = pd.DataFrame(opportunities)
@@ -1310,7 +1310,7 @@ def show_reports_page(loader):
             else:
                 st.info("No transshipment opportunities to export")
 
-        if st.button("📥 Export Hot List (CSV)"):
+        if st.button(" Export Hot List (CSV)"):
             hot_list = loader.get_hot_list_items()
             if not hot_list.empty:
                 csv = hot_list.to_csv(index=False)
@@ -1325,7 +1325,7 @@ def show_reports_page(loader):
 
     # Full data export
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("📥 Export Complete Inventory Position (CSV)", type="primary"):
+    if st.button(" Export Complete Inventory Position (CSV)", type="primary"):
         position = get_cached_inventory_position(loader, week)
         if not position.empty:
             csv = position.to_csv(index=False)

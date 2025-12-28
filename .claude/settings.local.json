@@ -3,7 +3,12 @@
     "allow": [
       "Bash(rm:*)",
       "Bash(python:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls:*)",
+      "Bash(ping:*)"
     ],
     "deny": [],
     "ask": []

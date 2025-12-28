@@ -77,11 +77,11 @@ class AFIDataLoader:
             self._process_dates()
             self._clean_data()
 
-            logger.info("✅ All AFI data loaded successfully")
+            logger.info("All AFI data loaded successfully")
             self._print_summary()
 
         except Exception as e:
-            logger.error(f"❌ Error loading AFI data: {e}")
+            logger.error(f"Error loading AFI data: {e}")
             raise
 
     def _load_sheet(self, workbook, sheet_name: str) -> pd.DataFrame:
@@ -95,17 +95,17 @@ class AFIDataLoader:
                     data.append([item.v if item is not None else None for item in row])
 
                 if len(data) <= 1:
-                    logger.warning(f"    ⚠️ Sheet {sheet_name} is empty or has only header")
+                    logger.warning(f"    WARNING: Sheet {sheet_name} is empty or has only header")
                     return pd.DataFrame()
 
                 # First row is header
                 df = pd.DataFrame(data[1:], columns=data[0])
 
-                logger.info(f"    ✓ Loaded {len(df)} rows × {len(df.columns)} columns")
+                logger.info(f"    Loaded {len(df)} rows x {len(df.columns)} columns")
                 return df
 
         except Exception as e:
-            logger.error(f"    ❌ Error loading sheet {sheet_name}: {e}")
+            logger.error(f"    ERROR: Loading sheet {sheet_name}: {e}")
             return pd.DataFrame()
 
     def _process_dates(self):
@@ -159,7 +159,7 @@ class AFIDataLoader:
 
         for name, df in datasets.items():
             if df is not None and not df.empty:
-                logger.info(f"  {name:35s} | {len(df):4d} rows × {len(df.columns):3d} cols")
+                logger.info(f"  {name:35s} | {len(df):4d} rows x {len(df.columns):3d} cols")
             else:
                 logger.info(f"  {name:35s} | Empty")
 
