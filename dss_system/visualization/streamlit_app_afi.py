@@ -157,6 +157,36 @@ def load_afi_data():
     return loader
 
 
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_cached_summary_stats(_loader, week):
+    """Cache summary stats to improve performance"""
+    return _loader.get_summary_stats(week)
+
+
+@st.cache_data(ttl=300)
+def get_cached_shortages(_loader, week):
+    """Cache shortage data"""
+    return _loader.get_shortages(week)
+
+
+@st.cache_data(ttl=300)
+def get_cached_excess(_loader, week):
+    """Cache excess data"""
+    return _loader.get_excess(week)
+
+
+@st.cache_data(ttl=300)
+def get_cached_transshipment_opportunities(_loader, week):
+    """Cache transshipment opportunities (expensive computation)"""
+    return _loader.identify_transshipment_opportunities(week)
+
+
+@st.cache_data(ttl=300)
+def get_cached_inventory_position(_loader, week):
+    """Cache inventory position data"""
+    return _loader.get_inventory_position(week)
+
+
 def main():
     # Sidebar
     st.sidebar.markdown("""
@@ -262,8 +292,8 @@ def show_overview_page(loader):
         </div>
     """, unsafe_allow_html=True)
 
-    # Get summary stats
-    summary = loader.get_summary_stats(week='W3')
+    # Get summary stats (cached for performance)
+    summary = get_cached_summary_stats(loader, week='W3')
 
     # Top KPIs
     col1, col2, col3, col4 = st.columns(4)
@@ -333,8 +363,8 @@ def show_overview_page(loader):
             </div>
         """, unsafe_allow_html=True)
 
-        # Get position data
-        position = loader.get_inventory_position('W3')
+        # Get position data (cached)
+        position = get_cached_inventory_position(loader, 'W3')
 
         if not position.empty:
             # Categorize
@@ -369,7 +399,7 @@ def show_overview_page(loader):
             </div>
         """, unsafe_allow_html=True)
 
-        shortages = loader.get_shortages('W3')
+        shortages = get_cached_shortages(loader, 'W3')
 
         if not shortages.empty and 'BACKORDER_RISK_COST' in shortages.columns:
             # Group by warehouse
@@ -468,19 +498,23 @@ def show_forecast_page(loader):
     col1, col2 = st.columns(2)
 
     with col1:
-        warehouses = ['All'] + sorted(forecast['WHSE'].unique().tolist())
+        # Convert all to string before sorting
+        warehouses = ['All'] + sorted([str(w) for w in forecast['WHSE'].unique().tolist()])
         selected_wh = st.selectbox("Warehouse", warehouses)
 
     with col2:
-        items = ['All'] + sorted(forecast['ITEM'].unique().tolist())[:100]  # Limit for performance
+        # Convert all to string before sorting
+        items = ['All'] + sorted([str(i) for i in forecast['ITEM'].unique().tolist()])[:100]  # Limit for performance
         selected_item = st.selectbox("Item (top 100)", items)
 
     # Filter data
     filtered = forecast.copy()
     if selected_wh != 'All':
-        filtered = filtered[filtered['WHSE'] == selected_wh]
+        # Convert WHSE to string for comparison
+        filtered = filtered[filtered['WHSE'].astype(str) == selected_wh]
     if selected_item != 'All':
-        filtered = filtered[filtered['ITEM'] == selected_item]
+        # Convert ITEM to string for comparison
+        filtered = filtered[filtered['ITEM'].astype(str) == selected_item]
 
     if filtered.empty:
         st.warning("No data for selected filters")
@@ -555,10 +589,10 @@ def show_inventory_page(loader):
     with col1:
         week = st.selectbox("Select Week", ['W3', 'W4', 'W5', 'W6'])
 
-    # Get data
-    position = loader.get_inventory_position(week)
-    shortages = loader.get_shortages(week)
-    excess = loader.get_excess(week)
+    # Get data (cached for performance)
+    position = get_cached_inventory_position(loader, week)
+    shortages = get_cached_shortages(loader, week)
+    excess = get_cached_excess(loader, week)
 
     if position.empty:
         st.warning("No inventory position data available")
@@ -728,8 +762,8 @@ def show_transshipment_page(loader):
     with col1:
         week = st.selectbox("Select Week", ['W3', 'W4', 'W5', 'W6'], key='trans_week')
 
-    # Get opportunities
-    opportunities = loader.identify_transshipment_opportunities(week)
+    # Get opportunities (cached - this is the most expensive operation)
+    opportunities = get_cached_transshipment_opportunities(loader, week)
 
     if not opportunities:
         st.warning("No transshipment opportunities identified for this week")
@@ -934,7 +968,7 @@ def show_performance_page(loader):
     excess_trend = []
 
     for week in weeks:
-        summary = loader.get_summary_stats(week)
+        summary = get_cached_summary_stats(loader, week)
         coverage_trend.append({
             'Week': week,
             'Coverage %': summary['coverage_percentage']
@@ -1062,11 +1096,12 @@ def show_performance_page(loader):
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 🏆 Warehouse Performance Ranking (Week 6)")
 
-    position = loader.get_inventory_position('W6')
+    position = get_cached_inventory_position(loader, 'W6')
 
     if not position.empty:
         wh_performance = position.groupby('WAREHOUSE').apply(
-            lambda x: (x['BALANCE'] >= x['LOWER_BOUND']).sum() / len(x) * 100
+            lambda x: (x['BALANCE'] >= x['LOWER_BOUND']).sum() / len(x) * 100,
+            include_groups=False
         ).reset_index()
         wh_performance.columns = ['Warehouse', 'Coverage %']
         wh_performance = wh_performance.sort_values('Coverage %', ascending=False)
@@ -1092,7 +1127,7 @@ def show_performance_page(loader):
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 🎯 Top 10 At-Risk Items (Week 6)")
 
-    shortages = loader.get_shortages('W6')
+    shortages = get_cached_shortages(loader, 'W6')
 
     if not shortages.empty and 'BACKORDER_RISK_COST' in shortages.columns:
         top_risk = shortages.nlargest(10, 'BACKORDER_RISK_COST')
@@ -1133,10 +1168,10 @@ def show_reports_page(loader):
     # Generate comprehensive report
     if st.button("📋 Generate Comprehensive Report", type="primary"):
         with st.spinner("Generating report..."):
-            summary = loader.get_summary_stats(week)
-            shortages = loader.get_shortages(week)
-            excess = loader.get_excess(week)
-            opportunities = loader.identify_transshipment_opportunities(week)
+            summary = get_cached_summary_stats(loader, week)
+            shortages = get_cached_shortages(loader, week)
+            excess = get_cached_excess(loader, week)
+            opportunities = get_cached_transshipment_opportunities(loader, week)
 
             report_lines = []
             report_lines.append("=" * 80)
@@ -1235,7 +1270,7 @@ def show_reports_page(loader):
 
     with col1:
         if st.button("📥 Export Shortages (CSV)"):
-            shortages = loader.get_shortages(week)
+            shortages = get_cached_shortages(loader, week)
             if not shortages.empty:
                 csv = shortages.to_csv(index=False)
                 st.download_button(
@@ -1248,7 +1283,7 @@ def show_reports_page(loader):
                 st.info("No shortage data to export")
 
         if st.button("📥 Export Excess Inventory (CSV)"):
-            excess = loader.get_excess(week)
+            excess = get_cached_excess(loader, week)
             if not excess.empty:
                 csv = excess.to_csv(index=False)
                 st.download_button(
@@ -1262,7 +1297,7 @@ def show_reports_page(loader):
 
     with col2:
         if st.button("📥 Export Transshipment Plan (CSV)"):
-            opportunities = loader.identify_transshipment_opportunities(week)
+            opportunities = get_cached_transshipment_opportunities(loader, week)
             if opportunities:
                 opp_df = pd.DataFrame(opportunities)
                 csv = opp_df.to_csv(index=False)
@@ -1291,7 +1326,7 @@ def show_reports_page(loader):
     # Full data export
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("📥 Export Complete Inventory Position (CSV)", type="primary"):
-        position = loader.get_inventory_position(week)
+        position = get_cached_inventory_position(loader, week)
         if not position.empty:
             csv = position.to_csv(index=False)
             st.download_button(
