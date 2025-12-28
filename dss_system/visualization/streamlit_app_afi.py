@@ -1099,9 +1099,9 @@ def show_performance_page(loader):
     position = get_cached_inventory_position(loader, 'W6')
 
     if not position.empty:
+        # Calculate coverage percentage by warehouse
         wh_performance = position.groupby('WAREHOUSE').apply(
-            lambda x: (x['BALANCE'] >= x['LOWER_BOUND']).sum() / len(x) * 100,
-            include_groups=False
+            lambda x: (x['BALANCE'] >= x['LOWER_BOUND']).sum() / len(x) * 100
         ).reset_index()
         wh_performance.columns = ['Warehouse', 'Coverage %']
         wh_performance = wh_performance.sort_values('Coverage %', ascending=False)
