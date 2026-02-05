@@ -25,6 +25,8 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from dss_system.data.loader_afi import AFIDataLoader
+from dss_system.optimization import DestinationChangeOptimizer
+from dss_system.utils.summary_generator import SummaryGenerator, render_summary_streamlit
 
 # Page configuration
 st.set_page_config(
@@ -204,7 +206,7 @@ def main():
     page = st.sidebar.radio(
         "NAVIGATION",
         [" Overview", " Forecast Analysis", " Inventory Position",
-         " Transshipment", " Performance", " Reports"],
+         " Transshipment", " Performance", " Reports", " Optimization"],
         label_visibility="visible"
     )
 
@@ -240,7 +242,31 @@ def main():
         </div>
     """, unsafe_allow_html=True)
 
-    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
+
+    # AI Summary Configuration
+    with st.sidebar.expander("AI Summary Settings", expanded=False):
+        st.markdown("""
+        <p style='font-size: 0.8rem; color: #666;'>
+        Enter your Google Gemini API key to enable AI-powered summaries.
+        Get a free key at <a href='https://makersuite.google.com/app/apikey' target='_blank'>Google AI Studio</a>.
+        </p>
+        """, unsafe_allow_html=True)
+
+        api_key_input = st.text_input(
+            "Gemini API Key",
+            type="password",
+            value=st.session_state.get('gemini_api_key', ''),
+            help="Leave empty to use template-based summaries"
+        )
+
+        if api_key_input:
+            st.session_state['gemini_api_key'] = api_key_input
+            st.success("API key saved for this session", icon="check")
+        elif 'gemini_api_key' in st.session_state:
+            del st.session_state['gemini_api_key']
+
+    st.sidebar.markdown("<br>", unsafe_allow_html=True)
     st.sidebar.markdown("""
         <div style='text-align: center; color: #899bbd; font-size: 0.7rem; padding-top: 1rem;
                     border-top: 1px solid #ebeef4;'>
@@ -266,6 +292,8 @@ def main():
         show_performance_page(loader)
     elif page == " Reports":
         show_reports_page(loader)
+    elif page == " Optimization":
+        show_optimization_page(loader)
 
 
 # =============================================================================
@@ -1337,6 +1365,487 @@ def show_reports_page(loader):
             )
         else:
             st.info("No inventory position data to export")
+
+
+# =============================================================================
+# PAGE 7: OPTIMIZATION - DESTINATION CHANGE
+# =============================================================================
+
+def show_optimization_page(loader):
+    """Destination Change Optimization page"""
+    st.markdown("""
+        <div class='page-title'>
+            <h1>Destination Change Optimization</h1>
+            <nav class='breadcrumb' style='color: #899bbd; font-size: 0.875rem;'>
+                <span>Home</span> \ <span style='color: #4154f1;'>Optimization</span>
+            </nav>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <div class='nice-card'>
+            <p style='color: #012970; margin-bottom: 0.5rem;'>
+                <strong>Objective:</strong> Minimize total supply chain costs by reallocating firm purchase orders
+                between warehouses while maintaining total PO quantities.
+            </p>
+            <p style='color: #899bbd; font-size: 0.875rem; margin-bottom: 0;'>
+                This optimization uses Mixed Integer Linear Programming (MILP) with OR-Tools SCIP solver
+                to find the best destination allocation for firm POs in Weeks 3-4.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Configuration section
+    st.markdown("### Configuration")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        alpha = st.slider(
+            "Alpha (Week 3 Priority Weight)",
+            min_value=1.0,
+            max_value=5.0,
+            value=2.0,
+            step=0.1,
+            help="Higher alpha gives more weight to Week 3 costs (nearer term priority)"
+        )
+
+    with col2:
+        pel_cost = st.number_input(
+            "Penalty Cost (per fractional unit)",
+            min_value=0.0,
+            value=0.0,
+            step=10.0,
+            help="Cost penalty for splitting packages (fractional units)"
+        )
+
+    with col3:
+        act_cost = st.number_input(
+            "Action Cost (per change)",
+            min_value=0.0,
+            value=0.0,
+            step=10.0,
+            help="Cost of making a destination change (discourages unnecessary changes)"
+        )
+
+    # Store optimization result in session state
+    if 'opt_result' not in st.session_state:
+        st.session_state.opt_result = None
+
+    # Run optimization button
+    col_btn1, col_btn2 = st.columns([1, 5])
+    with col_btn1:
+        run_button = st.button(" Run Optimization", type="primary", use_container_width=True)
+
+    if run_button:
+        with st.spinner("Running optimization... This may take a few minutes for large datasets."):
+            try:
+                # Create optimizer
+                optimizer = DestinationChangeOptimizer(
+                    loader,
+                    alpha=alpha,
+                    pel_cost=pel_cost if pel_cost > 0 else None,
+                    act_cost=act_cost if act_cost > 0 else None
+                )
+
+                # Run optimization
+                summary = optimizer.optimize(verbose=False)
+
+                if summary:
+                    # Store results in session state
+                    st.session_state.opt_result = {
+                        'optimizer': optimizer,
+                        'summary': summary,
+                        'timestamp': pd.Timestamp.now()
+                    }
+                    st.success("Optimization completed successfully!")
+                    st.rerun()
+                else:
+                    st.error("Optimization failed. No solution found.")
+
+            except Exception as e:
+                st.error(f"Error during optimization: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+
+    # Display results if available
+    if st.session_state.opt_result is not None:
+        result = st.session_state.opt_result
+        optimizer = result['optimizer']
+        summary = result['summary']
+
+        st.markdown("---")
+        st.markdown("### Optimization Results")
+
+        # KPI Cards
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric(
+                "Total Savings",
+                f"${summary['Total Savings']:,.2f}",
+                f"{summary['Savings %']:.2f}%",
+                delta_color="normal"
+            )
+
+        with col2:
+            st.metric(
+                "Baseline Cost",
+                f"${summary['Baseline Cost']:,.2f}"
+            )
+
+        with col3:
+            st.metric(
+                "Optimized Cost",
+                f"${summary['Optimized Cost']:,.2f}"
+            )
+
+        with col4:
+            st.metric(
+                "Destination Changes",
+                f"{summary['Number of Changes']} / {summary['Total PO Lines']}",
+                f"{summary['Change %']:.1f}%"
+            )
+
+        # Executive Summary Section
+        st.markdown("---")
+
+        # Get warehouse breakdown for summary
+        wh_breakdown = optimizer.get_warehouse_cost_breakdown()
+
+        # Initialize summary generator (check for API key in session state or environment)
+        gemini_api_key = st.session_state.get('gemini_api_key', None)
+        summary_gen = SummaryGenerator(api_key=gemini_api_key)
+
+        # Generate summary
+        with st.spinner("Generating executive summary..."):
+            summary_result = summary_gen.generate_summary(
+                summary=summary,
+                baseline_cost=optimizer.baseline_cost,
+                optimized_cost=optimizer.optimized_cost,
+                wh_breakdown=wh_breakdown,
+                use_ai=True
+            )
+
+        # Render the summary
+        render_summary_streamlit(summary_result)
+
+        st.markdown("---")
+
+        # Cost Breakdown Comparison
+        st.markdown("### Cost Breakdown Analysis")
+
+        # Create tabs for overall and warehouse-level analysis
+        tab1, tab2, tab3 = st.tabs(["Overall Cost Breakdown", "Warehouse Comparison", "Warehouse Details"])
+
+        with tab1:
+            cost_df = optimizer.get_cost_breakdown_dataframe()
+
+            # Create comparison chart
+            fig_cost = go.Figure()
+
+            # Filter out total row for chart
+            cost_chart_df = cost_df[cost_df['Cost Component'] != 'TOTAL']
+
+            fig_cost.add_trace(go.Bar(
+                name='Baseline',
+                x=cost_chart_df['Cost Component'],
+                y=cost_chart_df['Baseline'],
+                marker_color='#ff6384',
+                text=cost_chart_df['Baseline'].apply(lambda x: f'${x:,.0f}'),
+                textposition='outside'
+            ))
+
+            fig_cost.add_trace(go.Bar(
+                name='Optimized',
+                x=cost_chart_df['Cost Component'],
+                y=cost_chart_df['Optimized'],
+                marker_color='#36a2eb',
+                text=cost_chart_df['Optimized'].apply(lambda x: f'${x:,.0f}'),
+                textposition='outside'
+            ))
+
+            fig_cost.update_layout(
+                barmode='group',
+                title='Overall Cost Comparison: Baseline vs Optimized',
+                xaxis_title='Cost Component',
+                yaxis_title='Cost ($)',
+                template='plotly_white',
+                height=500,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+
+            st.plotly_chart(fig_cost, use_container_width=True)
+
+            # Cost breakdown table
+            st.dataframe(
+                cost_df.style.format({
+                    'Baseline': '${:,.2f}',
+                    'Optimized': '${:,.2f}',
+                    'Savings': '${:,.2f}',
+                    'Savings %': '{:.2f}%'
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+
+        with tab2:
+            # Get warehouse-level breakdown
+            wh_cost_df = optimizer.get_warehouse_cost_breakdown()
+
+            if not wh_cost_df.empty:
+                # Warehouse comparison chart
+                fig_wh_compare = go.Figure()
+
+                fig_wh_compare.add_trace(go.Bar(
+                    name='Baseline Cost',
+                    x=wh_cost_df['Warehouse'],
+                    y=wh_cost_df['Baseline Cost'],
+                    marker_color='#ff6384',
+                    text=wh_cost_df['Baseline Cost'].apply(lambda x: f'${x:,.0f}'),
+                    textposition='outside'
+                ))
+
+                fig_wh_compare.add_trace(go.Bar(
+                    name='Optimized Cost',
+                    x=wh_cost_df['Warehouse'],
+                    y=wh_cost_df['Optimized Cost'],
+                    marker_color='#36a2eb',
+                    text=wh_cost_df['Optimized Cost'].apply(lambda x: f'${x:,.0f}'),
+                    textposition='outside'
+                ))
+
+                fig_wh_compare.update_layout(
+                    barmode='group',
+                    title='Cost Comparison by Warehouse',
+                    xaxis_title='Warehouse',
+                    yaxis_title='Cost ($)',
+                    template='plotly_white',
+                    height=500,
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+
+                st.plotly_chart(fig_wh_compare, use_container_width=True)
+
+                # Savings by warehouse chart
+                fig_wh_savings = px.bar(
+                    wh_cost_df,
+                    x='Warehouse',
+                    y='Savings',
+                    color='Savings %',
+                    title='Savings by Warehouse',
+                    labels={'Savings': 'Savings ($)', 'Savings %': 'Savings %'},
+                    color_continuous_scale='RdYlGn',
+                    text=wh_cost_df['Savings'].apply(lambda x: f'${x:,.0f}')
+                )
+
+                fig_wh_savings.update_traces(textposition='outside')
+                fig_wh_savings.update_layout(
+                    template='plotly_white',
+                    height=400,
+                    xaxis_title='Warehouse',
+                    yaxis_title='Savings ($)'
+                )
+
+                st.plotly_chart(fig_wh_savings, use_container_width=True)
+
+                # Warehouse comparison table
+                st.markdown("#### Warehouse Cost Summary Table")
+                st.dataframe(
+                    wh_cost_df.style.format({
+                        'Baseline Cost': '${:,.2f}',
+                        'Optimized Cost': '${:,.2f}',
+                        'Savings': '${:,.2f}',
+                        'Savings %': '{:.2f}%',
+                        'Firm PO Volume': '{:,.0f}',
+                        'Num Changes': '{:,.0f}'
+                    }).background_gradient(subset=['Savings %'], cmap='RdYlGn', vmin=-5, vmax=30),
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                # Download warehouse breakdown
+                csv_wh = wh_cost_df.to_csv(index=False)
+                st.download_button(
+                    label=" Download Warehouse Breakdown CSV",
+                    data=csv_wh,
+                    file_name=f"Warehouse_Cost_Breakdown_{result['timestamp'].strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.warning("No warehouse-level data available.")
+
+        with tab3:
+            # Warehouse selector for detailed analysis
+            st.markdown("#### Select Warehouse for Detailed Analysis")
+
+            wh_cost_df = optimizer.get_warehouse_cost_breakdown()
+
+            if not wh_cost_df.empty:
+                selected_warehouse = st.selectbox(
+                    "Choose Warehouse",
+                    options=wh_cost_df['Warehouse'].tolist(),
+                    help="Select a warehouse to see detailed cost breakdown and changes"
+                )
+
+                if selected_warehouse:
+                    # Filter data for selected warehouse
+                    wh_data = wh_cost_df[wh_cost_df['Warehouse'] == selected_warehouse].iloc[0]
+
+                    # Display warehouse metrics
+                    col1, col2, col3, col4 = st.columns(4)
+
+                    with col1:
+                        st.metric(
+                            f"{selected_warehouse} Baseline Cost",
+                            f"${wh_data['Baseline Cost']:,.2f}"
+                        )
+
+                    with col2:
+                        st.metric(
+                            f"{selected_warehouse} Optimized Cost",
+                            f"${wh_data['Optimized Cost']:,.2f}"
+                        )
+
+                    with col3:
+                        st.metric(
+                            f"{selected_warehouse} Savings",
+                            f"${wh_data['Savings']:,.2f}",
+                            f"{wh_data['Savings %']:.2f}%"
+                        )
+
+                    with col4:
+                        # Calculate % of total savings
+                        total_savings = summary['Total Savings']
+                        pct_of_total = (wh_data['Savings'] / total_savings * 100) if total_savings > 0 else 0
+                        st.metric(
+                            "% of Total Savings",
+                            f"{pct_of_total:.1f}%"
+                        )
+
+                    # Pie chart: Baseline vs Optimized for selected warehouse
+                    st.markdown(f"#### {selected_warehouse} Cost Breakdown")
+
+                    fig_wh_pie = go.Figure()
+
+                    fig_wh_pie.add_trace(go.Pie(
+                        labels=['Baseline Cost', 'Optimized Cost'],
+                        values=[wh_data['Baseline Cost'], wh_data['Optimized Cost']],
+                        marker=dict(colors=['#ff6384', '#36a2eb']),
+                        hole=0.4,
+                        textinfo='label+value+percent',
+                        texttemplate='%{label}<br>$%{value:,.0f}<br>(%{percent})'
+                    ))
+
+                    fig_wh_pie.update_layout(
+                        title=f'{selected_warehouse} - Baseline vs Optimized Cost',
+                        template='plotly_white',
+                        height=400,
+                        showlegend=True
+                    )
+
+                    st.plotly_chart(fig_wh_pie, use_container_width=True)
+
+                    # Changes for selected warehouse
+                    st.markdown(f"#### Destination Changes for {selected_warehouse}")
+
+                    changes_df = optimizer.get_changes_dataframe()
+                    wh_changes = changes_df[changes_df['Warehouse'] == selected_warehouse]
+
+                    if not wh_changes.empty:
+                        st.write(f"Total changes for {selected_warehouse}: **{len(wh_changes)}** items")
+
+                        st.dataframe(
+                            wh_changes.style.format({
+                                'Firm PO': '{:.0f}',
+                                'New Pack': '{:.0f}',
+                                'New F': '{:.0f}',
+                                'New Total': '{:.2f}',
+                                'Change': '{:.2f}'
+                            }),
+                            use_container_width=True,
+                            hide_index=True
+                        )
+
+                        # Download warehouse-specific changes
+                        csv_wh_changes = wh_changes.to_csv(index=False)
+                        st.download_button(
+                            label=f" Download {selected_warehouse} Changes CSV",
+                            data=csv_wh_changes,
+                            file_name=f"{selected_warehouse}_Changes_{result['timestamp'].strftime('%Y%m%d_%H%M%S')}.csv",
+                            mime="text/csv"
+                        )
+                    else:
+                        st.info(f"No destination changes for {selected_warehouse}. Current allocation is optimal.")
+            else:
+                st.warning("No warehouse data available.")
+
+        # Destination Changes Log
+        st.markdown("### Destination Changes Log")
+
+        changes_df = optimizer.get_changes_dataframe()
+
+        if not changes_df.empty:
+            st.write(f"Total changes: **{len(changes_df)}** destination reallocations")
+
+            # Display changes table
+            st.dataframe(
+                changes_df.style.format({
+                    'Firm PO': '{:.0f}',
+                    'New Pack': '{:.0f}',
+                    'New F': '{:.0f}',
+                    'New Total': '{:.2f}',
+                    'Change': '{:.2f}'
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            # Export changes to CSV
+            csv = changes_df.to_csv(index=False)
+            st.download_button(
+                label=" Download Changes CSV",
+                data=csv,
+                file_name=f"AFI_Destination_Changes_{result['timestamp'].strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("No destination changes recommended. Current allocation is already optimal.")
+
+        # Summary Report
+        st.markdown("### Summary Report")
+
+        summary_text = f"""
+**Optimization Summary Report**
+Generated: {result['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}
+
+**Parameters:**
+- Alpha (Week 3 Weight): {summary['Alpha']}
+- Penalty Cost: ${pel_cost:,.2f}
+- Action Cost: ${act_cost:,.2f}
+
+**Results:**
+- Baseline Total Cost: ${summary['Baseline Cost']:,.2f}
+- Optimized Total Cost: ${summary['Optimized Cost']:,.2f}
+- Total Savings: ${summary['Total Savings']:,.2f} ({summary['Savings %']:.2f}%)
+- Destination Changes: {summary['Number of Changes']} out of {summary['Total PO Lines']} PO lines ({summary['Change %']:.1f}%)
+- Status: {summary['Status']}
+
+**Recommendation:**
+{"The optimization found significant cost savings by reallocating firm POs. Implement the recommended changes." if summary['Total Savings'] > 0 else "Current allocation is already optimal. No changes needed."}
+        """
+
+        st.text_area("", summary_text, height=400)
+
+        # Download summary report
+        st.download_button(
+            label=" Download Summary Report",
+            data=summary_text,
+            file_name=f"AFI_Optimization_Summary_{result['timestamp'].strftime('%Y%m%d_%H%M%S')}.txt",
+            mime="text/plain"
+        )
 
 
 # =============================================================================

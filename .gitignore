@@ -64,3 +64,13 @@ data/users.json
 # Environment variables
 .env
 .env.local
+
+# Test/benchmark files
+benchmark_*.txt
+benchmark_*.csv
+
+# PDF documents (thesis drafts, papers)
+*.pdf
+
+# Temporary/generated files
+nul
